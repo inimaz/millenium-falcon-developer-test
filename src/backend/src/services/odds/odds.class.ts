@@ -1,6 +1,13 @@
 import { Params } from "@feathersjs/feathers";
 import { Application } from "../../declarations";
-import { CreateOddsInputData, CreateOddsResponse, IGraph } from "./interfaces";
+import {
+  CreateOddsInputData,
+  CreateOddsResponse,
+  IGraph,
+  IMilleniumFalconConfig,
+  ShortestPathResponse,
+} from "./interfaces";
+import { shortestPathLogic } from "./calculateShortestPath";
 
 interface ServiceOptions {}
 
@@ -9,7 +16,7 @@ export class Odds {
   options: ServiceOptions;
   routesService: any;
   graph: IGraph | undefined;
-  milleniumFalconConfig: any;
+  milleniumFalconConfig: IMilleniumFalconConfig;
 
   constructor(options: ServiceOptions = {}, app: Application) {
     this.options = options;
@@ -37,39 +44,59 @@ export class Odds {
 
     // We need to build a graph from the routes + the autonomy of the ship
     // then get the shortest path
+    await this._calculateFullGraph();
+    const shortestPathResponse = shortestPathLogic(
+      this.graph as IGraph,
+      this.milleniumFalconConfig.departure,
+      this.milleniumFalconConfig.arrival,
+      data.bounty_hunters,
+      data.countdown
+    );
 
-    this.graph = await this._calculateFullGraph();
-
-    // Get the number of times the Bounty Hunter tried to capture the Millennium Falcon
-    const nCaptureTries = 0;
-
-    const odds = this._getOdds(nCaptureTries);
-
-    return { odds };
+    return this._buildResponse(shortestPathResponse);
   }
   /**
    * Get the odds
    * @param k number of times the bounty hunter has tried to capture you
-   * @returns
+   * @returns number in between 0 and 100 ==> 100 means it reaches destination. 0 it means it does not
    */
-  _getOdds(k: number) {
-    let odds = 0;
-    for (let i = 0; i < k; i++) {
-      odds += 9 ** k / 10 ** (k + 1);
+  _buildResponse(shortestPathResponse: ShortestPathResponse): { odds: number } {
+    if (!shortestPathResponse.success) {
+      return { odds: 0 };
     }
-    return odds;
+    // Get the number of times the Bounty Hunter tried to capture the Millennium Falcon
+    const nCaptureTries = shortestPathResponse.nCaptureTries;
+
+    let oddsOfBeingCaptured = 0;
+    for (let i = 0; i < nCaptureTries; i++) {
+      oddsOfBeingCaptured += 9 ** i / 10 ** (i + 1);
+    }
+    console.log("Final path: ", shortestPathResponse.path);
+    return { odds: 1 - oddsOfBeingCaptured };
   }
 
-  async _calculateFullGraph(): Promise<IGraph> {
-    const routes = await this.routesService.find();
+  async _calculateFullGraph() {
+    if (this.graph) {
+      console.log("Returning already-calculated graph");
+      return;
+    }
+    const routes = await this.routesService.find({ paginate: false });
     const graph: IGraph = {};
     routes.forEach(
       (route: { ORIGIN: string; DESTINATION: string; TRAVEL_TIME: number }) => {
+        // Set the origin node
+        if (!graph[route.ORIGIN]) {
+          graph[route.ORIGIN] = {};
+        }
         graph[route.ORIGIN][route.DESTINATION] = route.TRAVEL_TIME;
+        // Set the destination node
+        if (!graph[route.DESTINATION]) {
+          graph[route.DESTINATION] = {};
+        }
         graph[route.DESTINATION][route.ORIGIN] = route.TRAVEL_TIME; // This is a guess, travel time might be the same back and forth
       }
     );
     console.log(`This is the graph: ${JSON.stringify(graph)}`);
-    return graph;
+    this.graph = graph;
   }
 }
