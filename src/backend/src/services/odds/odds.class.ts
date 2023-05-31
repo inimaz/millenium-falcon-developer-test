@@ -22,7 +22,7 @@ export class Odds {
     this.options = options;
     this.app = app;
     this.routesService = app.service("routes");
-    this.milleniumFalconConfig = this.app.get("milleniumFalcon");
+    this.milleniumFalconConfig = this.app.get("milleniumFalconConfig");
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

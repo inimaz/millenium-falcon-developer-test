@@ -12,7 +12,7 @@
       "filename": "mydb.db"
     }
   },
-  "milleniumFalcon": {
+  "defaultMilleniumFalconConfig": {
     "autonomy": 6,
     "departure": "Tatooine",
     "arrival": "Endor",
