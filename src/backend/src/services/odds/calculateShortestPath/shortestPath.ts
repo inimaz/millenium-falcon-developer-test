@@ -11,6 +11,7 @@ export class ShortestPath {
   hunterPresences: any;
   bounty_hunters: { planet: string; day: number }[];
   ignoreHunters: boolean;
+  _shipAutonomy: number;
 
   constructor(
     graph: IGraph,
@@ -18,6 +19,7 @@ export class ShortestPath {
     endNode: string,
     ignoreHunters = true,
     bounty_hunters: { planet: string; day: number }[] = [],
+    shipAutonomy?: number,
     maxDistance?: number
   ) {
     ///////// SET UP /////////
@@ -38,20 +40,27 @@ export class ShortestPath {
     this.previous = {};
     // Create a priority queue to store nodes with their distances
     this.queue = new PriorityQueue();
+    if (shipAutonomy) {
+      this._shipAutonomy = shipAutonomy;
+    } else {
+      // If there is no ship autonomy, the ship can take any delta
+      this._shipAutonomy = Infinity;
+    }
+    console.log(`Ship's autonomy: ${this._shipAutonomy}`);
     this.hunterPresences = {};
     // Initialize the distances and previous nodes
     for (const node in graph) {
       if (node === startNode) {
         this.distances[node] = 0;
-        this.queue.enqueue(node, 0);
+        this.queue.enqueue(node, 0, 0, this._shipAutonomy, 0);
       } else {
         this.distances[node] = Infinity;
-        this.queue.enqueue(node, Infinity);
+        this.queue.enqueue(node, Infinity, 0, this._shipAutonomy, 0);
       }
       this.previous[node] = null;
     }
 
-    console.log("Setup done");
+    console.log("***** Setup done *****");
   }
 
   calculatePath(): ShortestPathResponse {
@@ -62,72 +71,84 @@ export class ShortestPath {
     }
     // Traverse the graph
     while (!this.queue.isEmpty()) {
-      const currentNode = this.queue.dequeue();
-      // console.log("CurrentNode:", currentNode);
+      // Get the first item of the queue and the distance from the previous node
+      const currentNodeToExplore = this.queue.dequeue();
+      console.log("Current node to explore:", currentNodeToExplore);
+      const {
+        planetName: currentNode,
+        priority,
+        currentFuel,
+        nCaptureTries,
+      } = currentNodeToExplore;
+      // if (deltaDistance > currentFuel || currentFuel == 0) {
+      //   const newFuel = this.refuel(currentNode);
+      //   // Recalculate if we need to add it to the queue
+      //   this._computeNeighborDistance(
+      //     this.previous[currentNode],
+      //     currentNode,
+      //     newFuel,
+      //     nCaptureTries
+      //   );
+      //   continue;
+      // }
 
       if (currentNode === this.endNode) {
-        // We have reached the end node, so we can reconstruct the shortest path
-        return this._createResponse();
+        // We have reached the end node, now we can reconstruct the shortest path
+        return this._createResponse(nCaptureTries, priority);
       }
 
       if (currentNode || this.distances[currentNode] !== Infinity) {
         for (const neighbor in this.graph[currentNode]) {
-          const { newDistance: computedNewDistance, hunterPresence } =
-            this._calculateNewDistance(
-              this.graph[currentNode][neighbor],
-              currentNode
-            );
-          const distance = this.distances[currentNode] + computedNewDistance;
-
-          if (
-            distance <= this.maxDistance &&
-            distance < this.distances[neighbor]
-          ) {
-            // Found a shorter path to the neighbor
-            this.distances[neighbor] = distance;
-            this.previous[neighbor] = currentNode;
-            this.hunterPresences[neighbor] = hunterPresence;
-            this.queue.enqueue(neighbor, distance);
-          }
+          this._computeNeighborDistance(
+            neighbor,
+            currentNode,
+            deepCopy(currentFuel),
+            nCaptureTries
+          );
         }
+      } else {
+        console.log(currentNode);
+        console.log(this.distances[currentNode]);
       }
     }
 
     // If we reach this point, there is no path from startNode to endNode
     return { success: false, nCaptureTries: 0 };
   }
+  refuel(currentNode: string): number {
+    console.log("Refueling...");
+    this.distances[currentNode] += 1;
+    return deepCopy(this._shipAutonomy);
+  }
+  consumeFuel(currentFuel: number, distance: number): number {
+    console.log(`Consuming ${distance} of fuel `);
+    return currentFuel - distance;
+  }
   /**
    * We know the shortest path, now we build the response (total distance, number of capture tries)
    * fpr that given path
    * @returns
    */
-  _createResponse = () => {
+  _createResponse = (nCaptureTries: number, totalDistance: number) => {
     // We have reached the end node, so we can reconstruct the shortest path
-    console.log("Reached endNode, calculating the path + total distance");
+    console.log("Reached endNode, calculating the path");
     //   console.log(previous);
     let path = [];
-    let totalDistance = 0;
     let node = this.endNode;
     let previousNode;
-    let nCaptureTries = 0;
     let success = true;
     while (node) {
       path.unshift(node);
       previousNode = this.previous[node];
-      // console.log(previousNode);
-      if (node != this.startNode && this.graph[previousNode]) {
-        totalDistance += this.graph[previousNode][node];
-      }
-      if (this.hunterPresences[node]) {
-        nCaptureTries += 1;
-        console.debug("Adding 1 capture try");
-      }
+      console.log(previousNode);
+      console.log(path);
       node = previousNode;
     }
-    if (totalDistance == 0) {
+    if (!isFinite(totalDistance)) {
       // Set the path to empty
       path = [];
       success = false;
+      totalDistance = 0;
     }
     return { success, path, distance: totalDistance, nCaptureTries };
   };
@@ -135,21 +156,109 @@ export class ShortestPath {
    * Calculates the distance to be added
    * @param distance
    * @param currentNode
-   * @param bounty_hunters
    * @returns
    */
-  _calculateNewDistance = (distance: number, currentNode: string) => {
+  _calculateDeltaDistance = (distance: number, currentNode: string) => {
     const hunterPresence: boolean = this.bounty_hunters.some(
       (hunter) => hunter.day == distance && hunter.planet == currentNode
     );
     let hunterPresenceDistance = 0;
-    if (hunterPresence && !this.ignoreHunters) {
+    if (hunterPresence) {
       console.debug(
         `There is a hunter in planet ${currentNode} the day ${distance}`
       );
-      hunterPresenceDistance = Infinity;
+      hunterPresenceDistance = this.ignoreHunters ? 0 : Infinity;
     }
-    const newDistance = Math.sqrt(distance ** 2 + hunterPresenceDistance);
-    return { newDistance, hunterPresence };
+    const deltaDistance = Math.sqrt(
+      distance ** 2 + hunterPresenceDistance ** 2
+    );
+    console.debug("Delta distance:", deltaDistance);
+    return { deltaDistance, hunterPresence };
+  };
+  _neighborDistanceAndDelta = (neighbor: string, currentNode: string) => {
+    const { deltaDistance: computedDeltaDistance, hunterPresence } =
+      this._calculateDeltaDistance(
+        this.graph[currentNode][neighbor],
+        currentNode
+      );
+    const distance = this.distances[currentNode] + computedDeltaDistance;
+    return { computedDeltaDistance, hunterPresence, distance };
+  };
+
+  /**
+   * Perform all the actions to compute the neighbor distance and add it to the queue
+   * @param neighbor
+   * @param currentNode
+   */
+  _computeNeighborDistance(
+    neighbor: string,
+    currentNode: string,
+    currentFuel: number,
+    currentNCaptureTries: number
+  ) {
+    let { computedDeltaDistance, hunterPresence, distance } =
+      this._neighborDistanceAndDelta(neighbor, currentNode);
+
+    let isMovementNeeded = this._isMovementNeeded(
+      distance,
+      computedDeltaDistance,
+      neighbor
+    );
+    // If the movement is needed but the fuel is not enough, refuel and recalculate distances
+    if (isMovementNeeded && currentFuel < computedDeltaDistance) {
+      currentFuel = this.refuel(currentNode);
+      const response = this._neighborDistanceAndDelta(neighbor, currentNode);
+      computedDeltaDistance = response.computedDeltaDistance;
+      hunterPresence = response.hunterPresence;
+      distance = response.distance;
+      // We recalculate if the movement is still needed
+      isMovementNeeded = this._isMovementNeeded(
+        distance,
+        computedDeltaDistance,
+        neighbor
+      );
+    }
+
+    if (isMovementNeeded) {
+      // Consume fuel
+      console.log(`Fuel: ${currentFuel}`);
+      currentFuel = this.consumeFuel(currentFuel, computedDeltaDistance);
+      // Found a shorter path to the neighbor
+      // Add it to queue
+      this.distances[neighbor] = distance;
+      this.previous[neighbor] = currentNode;
+      console.log("Current distances matrix:", this.distances);
+      console.log("Current previous matrix:", this.previous);
+      currentNCaptureTries += Number(hunterPresence);
+      this.queue.enqueue(
+        neighbor,
+        distance,
+        computedDeltaDistance,
+        currentFuel,
+        currentNCaptureTries
+      );
+    }
+  }
+  _isMovementNeeded = (
+    totalDistance: number,
+    deltaDistance: number,
+    neighbor: string
+  ): boolean => {
+    return (
+      totalDistance <= this.maxDistance &&
+      totalDistance < this.distances[neighbor] &&
+      deltaDistance <= this._shipAutonomy
+    );
   };
 }
+
+/**
+ * We need this deep copy function because JSON.stringify(Infinity) is not supported
+ * @param value
+ * @returns
+ */
+const deepCopy = (value: any) => {
+  const newValue =
+    value === Infinity ? Infinity : JSON.parse(JSON.stringify(value));
+  return newValue;
+};

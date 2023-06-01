@@ -8,7 +8,8 @@
 - [x] Calculate shortest path betweeen 2 planets
 - [x] Use countdown + bounty hunters
 - [x] Allow config file for millenium falcon
-- [ ] Take into consideration the max fuel of the ship + allow to rest 1 day into the planet
+- [x] Take into consideration the max fuel of the ship + allow to rest 1 day into the planet
+- [ ] Add max allowed bounty hunters param (so that we can try with k =1,2,3... N)
 - [ ] Apply the algorithm (see below section)
 
 ## FE

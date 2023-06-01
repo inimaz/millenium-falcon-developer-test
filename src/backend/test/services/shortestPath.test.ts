@@ -185,8 +185,76 @@ describe("shortestPath", () => {
         startNode,
         endNode,
         true,
+        hothBountyHunters
+      );
+      const response = shortestPath.calculatePath();
+      expect(response).toEqual(expectedResponse);
+    }
+  );
+  test.each([
+    [
+      "Tatooine",
+      "Endor",
+      Infinity,
+      7,
+      true,
+      {
+        success: true,
+        distance: 7,
+        path: ["Tatooine", "Hoth", "Endor"],
+        nCaptureTries: 1,
+      },
+    ],
+    [
+      "Tatooine",
+      "Endor",
+      Infinity,
+      6,
+      true,
+      {
+        success: true,
+        distance: 8,
+        path: ["Tatooine", "Hoth", "Endor"],
+        nCaptureTries: 1,
+      },
+    ],
+    [
+      "Tatooine",
+      "Endor",
+      5,
+      7,
+      true,
+      {
+        success: false,
+        distance: 0,
+        path: [],
+        nCaptureTries: 0,
+      },
+    ],
+  ])(
+    "should succeed or fail -- From: %s to: %s with bounty hunters and max distance %s and ship autonomy %s (ignore hunters %s) ",
+    (
+      startNode,
+      endNode,
+      maxDistance,
+      autonomy,
+      ignoreHunters,
+      expectedResponse
+    ) => {
+      const graph: IGraph = {
+        Tatooine: { Dagobah: 6, Hoth: 6 },
+        Endor: { Dagobah: 4, Hoth: 1 },
+        Dagobah: { Endor: 4, Hoth: 1, Tatooine: 6 },
+        Hoth: { Dagobah: 1, Endor: 1, Tatooine: 6 },
+      };
+      const shortestPath = new ShortestPath(
+        graph,
+        startNode,
+        endNode,
+        ignoreHunters,
         hothBountyHunters,
-        7
+        autonomy,
+        maxDistance
       );
       const response = shortestPath.calculatePath();
       expect(response).toEqual(expectedResponse);

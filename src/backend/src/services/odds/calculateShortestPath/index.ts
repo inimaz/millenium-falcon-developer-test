@@ -6,15 +6,20 @@ export function shortestPathLogic(
   startNode: string,
   endNode: string,
   bounty_hunters: { planet: string; day: number }[] = [],
+  autonomy: number,
   maxDistance: number
 ): ShortestPathResponse {
   // Get the shortest path and the number of capture tries
+  console.log(
+    '////////////////////// Calculate shortest path without avoiding hunters //////////////////////'
+  );
   const shortestPathCalculator = new ShortestPath(
     graph,
     startNode,
     endNode,
     true,
     bounty_hunters,
+    autonomy,
     maxDistance
   );
   const shortPath = shortestPathCalculator.calculatePath();
@@ -26,6 +31,9 @@ export function shortestPathLogic(
     // If capture tries is 0 --> this is the path
     return shortPath;
   }
+  console.log(
+    '////////////////////// Calculate shortest path avoiding hunters //////////////////////'
+  );
   //
   const shortestPathCalculatorAvoidHunters = new ShortestPath(
     graph,
@@ -33,6 +41,7 @@ export function shortestPathLogic(
     endNode,
     false,
     bounty_hunters,
+    autonomy,
     maxDistance
   );
   const shortPathAvoidingHunters =

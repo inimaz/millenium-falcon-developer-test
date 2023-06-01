@@ -5,19 +5,37 @@ export default class PriorityQueue {
     this.queue = [];
   }
 
-  enqueue(planetName: string, priority: number) {
-    const queueItem = { planetName, priority };
+  enqueue(
+    planetName: string,
+    priority: number,
+    deltaDistance: number,
+    currentFuel: number,
+    nCaptureTries: number
+  ) {
+    const queueItem = {
+      planetName,
+      priority,
+      deltaDistance,
+      currentFuel,
+      nCaptureTries,
+    };
     this.queue.push(queueItem);
     this.sort();
     console.debug(
-      `Addint to queue item ${JSON.stringify(queueItem)} . QUEUE After:`,
+      `Adding to queue item ${JSON.stringify(queueItem)} . QUEUE After:`,
       this.queue
     );
   }
 
   dequeue() {
-    console.debug('DEQUEING. QUEUE BEFORE:', this.queue);
-    return this.queue.shift().planetName;
+    console.debug("Queue before dequeuing:", this.queue);
+    const item = this.queue.shift();
+    return {
+      planetName: item.planetName,
+      priority: item.priority,
+      currentFuel: item.currentFuel,
+      nCaptureTries: item.nCaptureTries,
+    };
   }
 
   isEmpty() {

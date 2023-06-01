@@ -1,13 +1,13 @@
-import { Params } from "@feathersjs/feathers";
-import { Application } from "../../declarations";
+import { Params } from '@feathersjs/feathers';
+import { Application } from '../../declarations';
 import {
   CreateOddsInputData,
   CreateOddsResponse,
   IGraph,
   IMilleniumFalconConfig,
   ShortestPathResponse,
-} from "./interfaces";
-import { shortestPathLogic } from "./calculateShortestPath";
+} from './interfaces';
+import { shortestPathLogic } from './calculateShortestPath';
 
 interface ServiceOptions {}
 
@@ -21,8 +21,8 @@ export class Odds {
   constructor(options: ServiceOptions = {}, app: Application) {
     this.options = options;
     this.app = app;
-    this.routesService = app.service("routes");
-    this.milleniumFalconConfig = this.app.get("milleniumFalconConfig");
+    this.routesService = app.service('routes');
+    this.milleniumFalconConfig = this.app.get('milleniumFalconConfig');
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -37,7 +37,7 @@ export class Odds {
     // Millenium falcon
     if (countdown < this.milleniumFalconConfig.autonomy) {
       console.log(
-        "The autonomy of the ship is not enough to arrive to destiny."
+        'The autonomy of the ship is not enough to arrive to destiny.'
       );
       return { odds: 0 };
     }
@@ -50,6 +50,7 @@ export class Odds {
       this.milleniumFalconConfig.departure,
       this.milleniumFalconConfig.arrival,
       data.bounty_hunters,
+      this.milleniumFalconConfig.autonomy,
       data.countdown
     );
 
@@ -71,13 +72,15 @@ export class Odds {
     for (let i = 0; i < nCaptureTries; i++) {
       oddsOfBeingCaptured += 9 ** i / 10 ** (i + 1);
     }
-    console.log("Final path: ", shortestPathResponse.path);
+    console.log('Final path: ', shortestPathResponse.path);
+    console.log('Distance: ', shortestPathResponse.distance);
+    console.log('nCaptureTries: ', shortestPathResponse.nCaptureTries);
     return { odds: 1 - oddsOfBeingCaptured };
   }
 
   async _calculateFullGraph() {
     if (this.graph) {
-      console.log("Returning already-calculated graph");
+      console.log('Returning already-calculated graph');
       return;
     }
     const routes = await this.routesService.find({ paginate: false });
