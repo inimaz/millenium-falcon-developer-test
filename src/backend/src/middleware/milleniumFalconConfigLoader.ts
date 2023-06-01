@@ -8,9 +8,11 @@ export default function (app: Application) {
   // const workingDir = process.cwd();
   if (process.env.MILLENIUM_FALCON_CONFIG_FILE) {
     const pathToFile = path.resolve(process.env.MILLENIUM_FALCON_CONFIG_FILE);
+    const pathDirName = path.dirname(pathToFile);
     const jsonString = fs.readFileSync(pathToFile, "utf-8");
     milleniumFalconConfig = JSON.parse(jsonString);
     milleniumFalconConfig.routes_db = path.resolve(
+      pathDirName,
       milleniumFalconConfig.routes_db
     );
     console.log(milleniumFalconConfig.routes_db);

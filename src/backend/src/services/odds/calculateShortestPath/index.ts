@@ -1,5 +1,5 @@
-import { IGraph, ShortestPathResponse } from '../interfaces';
-import { ShortestPath } from './shortestPath';
+import { IGraph, ShortestPathResponse } from "../interfaces";
+import { ShortestPath } from "./shortestPath";
 
 export function shortestPathLogic(
   graph: IGraph,
@@ -11,52 +11,82 @@ export function shortestPathLogic(
 ): ShortestPathResponse {
   // Get the shortest path and the number of capture tries
   console.log(
-    '////////////////////// Calculate shortest path without avoiding hunters //////////////////////'
+    "////////////////////// Calculate shortest path without avoiding hunters //////////////////////"
   );
+  const shortPathsArray = [];
   const shortestPathCalculator = new ShortestPath(
     graph,
     startNode,
     endNode,
-    true,
     bounty_hunters,
     autonomy,
-    maxDistance
+    maxDistance,
+    Infinity
   );
-  const shortPath = shortestPathCalculator.calculatePath();
-  if (!shortPath.success) {
-    console.log('No luck, the falcon cannot reach the target planet on time.');
-    return shortPath;
+  const initialShortPath = shortestPathCalculator.calculatePath();
+  console.log(`initialShortPath: `, initialShortPath);
+  shortPathsArray.push({ ...initialShortPath, name: "initialShortPath" });
+  if (!initialShortPath.success) {
+    console.log("No luck, the falcon cannot reach the target planet on time.");
+    return initialShortPath;
   }
-  if (shortPath.nCaptureTries == 0) {
+  if (initialShortPath.nCaptureTries == 0) {
     // If capture tries is 0 --> this is the path
-    return shortPath;
+    return initialShortPath;
   }
   console.log(
-    '////////////////////// Calculate shortest path avoiding hunters //////////////////////'
+    "////////////////////// Calculate shortest path avoiding hunters //////////////////////"
   );
   //
   const shortestPathCalculatorAvoidHunters = new ShortestPath(
     graph,
     startNode,
     endNode,
-    false,
     bounty_hunters,
     autonomy,
-    maxDistance
+    maxDistance,
+    0
   );
   const shortPathAvoidingHunters =
     shortestPathCalculatorAvoidHunters.calculatePath();
+  console.log(`shortestPathCalculatorAvoidHunters: `, shortPathAvoidingHunters);
+
+  shortPathsArray.push({
+    ...shortPathAvoidingHunters,
+    name: "shortPathAvoidingHunters",
+  });
   if (shortPathAvoidingHunters.success) {
     return shortPathAvoidingHunters;
   }
 
   // We cannot avoid hunters. Now we need to get dirty and go to planets where there are hunters
-  const N = shortPath.nCaptureTries;
+  const N = initialShortPath.nCaptureTries;
   let n = 1;
   while (n < N) {
+    console.log(
+      `////////////////////// Calculate shortest path allowing ${n} hunters //////////////////////`
+    );
     // If capture tries is N --> try with maxcaptures = 1,2,3...N-1,N
+    const shortestPathCalculator = new ShortestPath(
+      graph,
+      startNode,
+      endNode,
+      bounty_hunters,
+      autonomy,
+      maxDistance,
+      n
+    );
+    const shortestPathResponse = shortestPathCalculator.calculatePath();
+    const shortPathName = `shortestPath${n}`;
+    console.log(shortPathName, shortestPathResponse);
+    shortPathsArray.push({ ...shortestPathResponse, name: shortPathName });
+    if (shortestPathResponse.success) {
+      return shortestPathResponse;
+    }
     n += 1;
   }
+  console.log("All calculated paths", shortPathsArray);
   // Get the first success with the lowest N
-  return shortPath;
+  // If no other way is possible, return the initial shortPath
+  return initialShortPath;
 }

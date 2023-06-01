@@ -25,7 +25,7 @@ function callAPI(milleniumFalcon, empireJson) {
   shell.exec(`cd ${backendDir};
   npm install;
   npm run compile;
-  MILLENIUM_FALCON_CONFIG_FILE=${milleniumFalconFile} EMPIRE_CONFIG_FILE=${empireConfigFile} npm run cli;
+  LOG_LEVEL=DEBUG MILLENIUM_FALCON_CONFIG_FILE=${milleniumFalconFile} EMPIRE_CONFIG_FILE=${empireConfigFile} npm run cli;
   cd ${currentDir}`);
   shell.exit();
 }
